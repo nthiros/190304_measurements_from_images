@@ -1,9 +1,25 @@
-class Camera_pose(object):
-    def __init__(self):
-        self.p = None                   # Pose
+
+import imageClass
+import numpy as np
+import matplotlib.pyplot as plt
+import PIL.Image
+import matplotlib.image as mpimg
+import scipy.optimize as so
+
+class camClass(object):
+
+
+    def __init__(self,foc_len,sensor_x,sensor_y,pose_guess):
+
         self.f = None                   # Focal Length in Pixels
-        self.c = np.array([None,None])  # Sensor
-        
+        self.c = np.array([sensor_x,sensor_y])  # Sensor
+        self.images = [None]
+        self.pose_guess = pose_guess
+
+    def add_images(self,image):
+        image.pose = self.pose_guess  #initialize image with guess
+        self.images.append(image) 
+
     def rotational_transform(self,pts,pose):
             """  
             This function performs the translation and rotation from world coordinates into generalized camera coordinates.
@@ -52,15 +68,36 @@ class Camera_pose(object):
         pv = gcy*focal + sensor[1]/2.
         return np.array([pu,pv]).T
           
-    def residual(self, pose, pts, u_gcp):
-        ''' Calculate the residual between transformed coordinates on prominant features and measured pixel values of those features'''
-        pt = myCam.projective_transform(myCam.rotational_transform(pts,pose))
-        res = pt.flatten() - u_gcp.flatten()
-        return res    
-    def estimate_pose(self, pts, u_gcp):
-        """
-        This function adjusts the pose vector such that the difference between the observed pixel coordinates u_gcp 
-        and the projected pixels coordinates of X_gcp is minimized.
-        """
-        p_opt = so.least_squares(self.residual, self.p, method='lm',args=(pts,u_gcp))
-        return p_opt
+ 
+    def estimate_pose(self):
+
+         def residual_pose(self, pose, pts, u_gcp):
+            pt = myCam.projective_transform(myCam.rotational_transform(pts,pose))
+            res = pt.flatten() - u_gcp.flatten()
+            return res 
+
+        for i in range(len(self.images)):
+            self.images[i].pose = so.least_squares(self.residual_pose, self.images[i].p, method='lm',args=(self.images[i].realgcp,self.images[i].imgcp))
+     
+    def estimate_RWC(self):
+
+        if(len(self.images) < 2):
+           print("There are not 2 images in this camera class")
+        #===========================
+        def residual_RWC(self, RWC, pose1, pose2,imcor1,imcor2):
+        
+            pt_1 = self.projective_transform(self.rotational_transform(RWC, pose1)) # u,v based on first image
+            pt_2 = self.projective_transform(self.rotational_transform(RWC, pose2)) 
+            res_1 = pt_1.flatten() - imcor1.flatten()
+            res_2 = pt_2.flatten() - imcor2.flatten()
+            return np.hstack((res_1, res_2))  
+        #==========================
+        for i in range(len(self.images)):
+            for j in range(len(self.images)):
+                if( i != j):
+                    self.images[i].realgcp = so.least_squares(self.residual_RWC, self.images[i].realgcp , method='lm',args=(self.images[i].pose, self.images[j].pose, self.images[i].imagegcp, self.images[j].imagegcp))
+        
+        
+
+
+
